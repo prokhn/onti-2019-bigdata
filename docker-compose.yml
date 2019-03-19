@@ -1,0 +1,8 @@
+version: '2.3'
+services:
+  rl:
+    build: .
+    tty: true
+    stdin_open: true
+    ports:
+     - 8888:8888
