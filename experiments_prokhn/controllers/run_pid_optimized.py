@@ -19,10 +19,16 @@ class Policy(object):
 
 
 class PIDPolicy(Policy):
-    def __init__(self):
-        self.r = [2, 10, 0.005]
-        self.p = [10, 10, 0.005]
-        self.y = [4, 50, 0.0]
+    def __init__(self, r, p, y):
+        # self.r = [2, 10, 0.005]
+        # self.p = [10, 10, 0.005]
+        # self.y = [4, 50, 0.0]
+
+        self.r = r
+        self.p = p
+        self.y = y
+
+        # print('!!!!!!!', self.r, self.p, self.y)
         self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
 
     def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
@@ -281,8 +287,8 @@ class PIDEvaluator:
             ob, reward, done, info = env.step(ac)
             pbar.update(1)
 
-            # if pbar.n >= 1500:
-            #     break
+            if pbar.n >= 1000:
+                break
 
             actuals.append(actual)
             desireds.append(desired)
@@ -295,7 +301,7 @@ class PIDEvaluator:
         env.close()
         return desireds, actuals, rewards
 
-    def main(self, env_id: str, seed: int):
+    def main(self, env_id: str, seed: int, r, p, y):
         print('[Evaluator.main] Starting new session with seed {}'.format(seed))
         print('[Evaluator.main] Environment id is "{}"'.format(env_id))
 
@@ -303,13 +309,14 @@ class PIDEvaluator:
         rank = MPI.COMM_WORLD.Get_rank()
         workerseed = seed + 1000000 * rank
         env.seed(workerseed)
-        pi = PIDPolicy()
+        pi = PIDPolicy(r, p, y)
         desireds, actuals, rewards = self.run(env, pi)
         rewards = np.array(rewards)
         print('\nResults summary:\n\t--sum  {}\n\t--mean {}'.format(np.sum(rewards), np.mean(rewards)))
         title = "PID Step Response in Environment {}".format(env_id)
         plot_title = 'Session seed {}'.format(seed)
         # self.plot_step_response(plot_title, np.array(desireds), np.array(actuals), title=title)
+        return rewards
 
     def plot_step_response(self, plot_title, desired, actual, title=None, step_size=0.001, threshold_percent=0.1):
         # actual = actual[:,:end,:]
