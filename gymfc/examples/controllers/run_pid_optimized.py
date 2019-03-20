@@ -266,6 +266,7 @@ class PIDEvaluator:
     def run(self, env, pi):
         actuals = []
         desireds = []
+        rewards = []
 
         pi.reset()
         ob = env.reset()
@@ -279,14 +280,20 @@ class PIDEvaluator:
             ac = pi.action(ob, env.sim_time, desired, actual)
             ob, reward, done, info = env.step(ac)
             pbar.update(1)
+
+            # if pbar.n >= 1500:
+            #     break
+
             actuals.append(actual)
             desireds.append(desired)
+            rewards.append(reward)
+
             if done:
                 break
 
         pbar.close()
         env.close()
-        return desireds, actuals
+        return desireds, actuals, rewards
 
     def main(self, env_id: str, seed: int):
         print('[Evaluator.main] Starting new session with seed {}'.format(seed))
@@ -297,10 +304,12 @@ class PIDEvaluator:
         workerseed = seed + 1000000 * rank
         env.seed(workerseed)
         pi = PIDPolicy()
-        desireds, actuals = self.run(env, pi)
+        desireds, actuals, rewards = self.run(env, pi)
+        rewards = np.array(rewards)
+        print('\nResults summary:\n\t--sum  {}\n\t--mean {}'.format(np.sum(rewards), np.mean(rewards)))
         title = "PID Step Response in Environment {}".format(env_id)
         plot_title = 'Session seed {}'.format(seed)
-        self.plot_step_response(plot_title, np.array(desireds), np.array(actuals), title=title)
+        # self.plot_step_response(plot_title, np.array(desireds), np.array(actuals), title=title)
 
     def plot_step_response(self, plot_title, desired, actual, title=None, step_size=0.001, threshold_percent=0.1):
         # actual = actual[:,:end,:]
