@@ -12,7 +12,7 @@ import gym
 import math
 
 
-def train(num_timesteps, seed, model_path=None, env_id=None,):
+def train(num_timesteps, seed, model_path=None, env_id=None):
     from baselines.ppo1 import mlp_policy, pposgd_simple
     U.make_session(num_cpu=1).__enter__()
 
@@ -23,7 +23,7 @@ def train(num_timesteps, seed, model_path=None, env_id=None,):
     env = gym.make(env_id)
 
     # parameters below were the best found in a simple random search
-    # these are good enough to make  whumanoidalk, but whether those are
+    # these are good enough to make humanoid walk, but whether those are
     # an absolute best or not is not certain
     env = RewScale(env, 0.1)
     pi = pposgd_simple.learn(env, policy_fn,
@@ -38,8 +38,8 @@ def train(num_timesteps, seed, model_path=None, env_id=None,):
                              schedule='linear',
                              )
     env.close()
-    # if model_path:
-    #     U.save_state(model_path)
+    if model_path:
+        U.save_state(model_path)
 
     return pi
 
@@ -133,7 +133,7 @@ def main():
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--model-path', default=os.path.join('/root/code/nti/gymfc/humanoid_policy', 'hum'))
     parser.add_argument('--play', action="store_true", default=False)
-    parser.add_argument('--num-timesteps', type=int, default=2 * 1e6)
+    parser.add_argument('--num-timesteps', type=int, default=2*1e6)
     current_dir = os.path.dirname(__file__)
     config_path = os.path.join(current_dir,
                                "../configs/iris.config")
@@ -151,13 +151,13 @@ def main():
         U.load_state(args.model_path)
 
         env = gym.make(args.env)
-        # env.render()
+        #env.render()
         ob = env.reset()
         actuals = []
         desireds = []
         while True:
-            desired = env.omega_target  # [0., 0., 0.]
-            actual = env.omega_actual  # -[0., 0., 0.]
+            desired = env.omega_target
+            actual = env.omega_actual
             actuals.append(actual)
             desireds.append(desired)
             print("sp=", desired, " rate=", actual)
