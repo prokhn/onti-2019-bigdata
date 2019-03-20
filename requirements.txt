@@ -1,0 +1,6 @@
+gym
+tqdm
+gymfc
+numpy
+matplotlib
+bayesian-optimization

@@ -121,7 +121,7 @@ def learn(env, policy_fn, *,
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
 
     assign_old_eq_new = U.function([],[], updates=[tf.assign(oldv, newv)
-        for (oldv, newv) in zipsame(oldpi.get_variables(), pi.get_variables())])
+    for (oldv, newv) in zipsame(oldpi.get_variables(), pi.get_variables())])
     compute_losses = U.function([ob, ac, atarg, ret, lrmult], losses)
 
     U.initialize()
