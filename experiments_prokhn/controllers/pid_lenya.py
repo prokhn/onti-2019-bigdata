@@ -1,13 +1,12 @@
-import os
-import gym
-import math
-import time
-import tqdm
-import gymfc
 import argparse
+import gym
+import gymfc
 import numpy as np
+import tqdm
 from mpi4py import MPI
-import matplotlib.pyplot as plt
+import math
+import os
+import time
 
 
 class Policy(object):
@@ -18,20 +17,18 @@ class Policy(object):
         pass
 
 
-class PIDPolicy(Policy):
-    def __init__(self, r, p, y):
-        # self.r = [2, 10, 0.005]
-        # self.p = [10, 10, 0.005]
-        # self.y = [4, 50, 0.0]
+class Agent(Policy):
+    def __init__(self):
+        self.r = [39, 6, 0]
+        self.p = [35, 8, 0]
+        self.y = [4, 35, 0]
 
-        self.r = r
-        self.p = p
-        self.y = y
-
-        # print('!!!!!!!', self.r, self.p, self.y)
+        # self.r = [23, 40, 7]
+        # self.p = [33, 30, 75]
+        # self.y = [49, 50, 2]
         self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
 
-    def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
+    def predict(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
         # Convert to degrees
         desired = list(map(math.degrees, desired))
         actual = list(map(math.degrees, actual))
@@ -53,7 +50,7 @@ class PIDController(object):
     minthrottle = 1070
     maxthrottle = 2000
 
-    def __init__(self, pid_roll=[40, 40, 30], pid_pitch=[58, 50, 35], pid_yaw=[80, 45, 20], iterm_limit=150):
+    def __init__(self, pid_roll=[40, 40, 30], pid_pitch=[58, 50, 35], pid_yaw=[80, 45, 20], itermLimit=150):
 
         # init gains and scale
         self.Kp = [pid_roll[0], pid_pitch[0], pid_yaw[0]]
@@ -65,7 +62,7 @@ class PIDController(object):
         self.Kd = [pid_roll[2], pid_pitch[2], pid_yaw[2]]
         self.Kd = [self.DTERM_SCALE * d for d in self.Kd]
 
-        self.itermLimit = iterm_limit
+        self.itermLimit = itermLimit
 
         self.previousRateError = [0] * 3
         self.previousTime = 0
@@ -90,14 +87,14 @@ class PIDController(object):
             return amt
 
     def mix(self, r, p, y):
-        pid_mixer_scaling = 1000.0
-        pid_sum_limit = 10000.  # 500
-        pid_sum_limit_yaw = 100000.  # 1000.0#400
-        motor_output_mix_sign = 1
-        motor_output_range = self.maxthrottle - self.minthrottle  # throttle max - throttle min
-        motor_output_min = self.minthrottle
+        PID_MIXER_SCALING = 1000.0
+        pidSumLimit = 10000.  # 500
+        pidSumLimitYaw = 100000.  # 1000.0#400
+        motorOutputMixSign = 1
+        motorOutputRange = self.maxthrottle - self.minthrottle  # throttle max - throttle min
+        motorOutputMin = self.minthrottle
 
-        current_mixer = [
+        currentMixer = [
             [1.0, -1.0, 0.598, -1.0],  # REAR_R
             [1.0, -0.927, -0.598, 1.0],  # RONT_R
             [1.0, 1.0, 0.598, 1.0],  # REAR_L
@@ -108,52 +105,52 @@ class PIDController(object):
         mixer_index_pitch = 2
         mixer_index_yaw = 3
 
-        scaled_axis_pid_roll = self.constrainf(r, -pid_sum_limit, pid_sum_limit) / pid_mixer_scaling
-        scaled_axis_pid_pitch = self.constrainf(p, -pid_sum_limit, pid_sum_limit) / pid_mixer_scaling
-        scaled_axis_pid_yaw = self.constrainf(y, -pid_sum_limit_yaw, pid_sum_limit_yaw) / pid_mixer_scaling
-        scaled_axis_pid_yaw = -scaled_axis_pid_yaw
+        scaledAxisPidRoll = self.constrainf(r, -pidSumLimit, pidSumLimit) / PID_MIXER_SCALING
+        scaledAxisPidPitch = self.constrainf(p, -pidSumLimit, pidSumLimit) / PID_MIXER_SCALING
+        scaledAxisPidYaw = self.constrainf(y, -pidSumLimitYaw, pidSumLimitYaw) / PID_MIXER_SCALING
+        scaledAxisPidYaw = -scaledAxisPidYaw
 
         # Find roll/pitch/yaw desired output
         motor_count = 4
-        motor_mix = [0] * motor_count
-        motor_mix_max = 0
-        motor_mix_min = 0
+        motorMix = [0] * motor_count
+        motorMixMax = 0
+        motorMixMin = 0
         # No additional throttle, in air mode
         throttle = 0
-        motor_range_min = 1000
-        motor_range_max = 2000
+        motorRangeMin = 1000
+        motorRangeMax = 2000
 
         for i in range(motor_count):
-            mix = (scaled_axis_pid_roll * current_mixer[i][1] +
-                   scaled_axis_pid_pitch * current_mixer[i][2] +
-                   scaled_axis_pid_yaw * current_mixer[i][3])
+            mix = (scaledAxisPidRoll * currentMixer[i][1] +
+                   scaledAxisPidPitch * currentMixer[i][2] +
+                   scaledAxisPidYaw * currentMixer[i][3])
 
-            if mix > motor_mix_max:
-                motor_mix_max = mix
-            elif mix < motor_mix_min:
-                motor_mix_min = mix
-            motor_mix[i] = mix
+            if mix > motorMixMax:
+                motorMixMax = mix
+            elif mix < motorMixMin:
+                motorMixMin = mix
+            motorMix[i] = mix
 
-        motor_mix_range = motor_mix_max - motor_mix_min
-        # print("range=", motor_mix_range)
+        motorMixRange = motorMixMax - motorMixMin
+        # print("range=", motorMixRange)
 
-        if motor_mix_range > 1.0:
+        if motorMixRange > 1.0:
             for i in range(motor_count):
-                motor_mix[i] /= motor_mix_range
+                motorMix[i] /= motorMixRange
             # Get the maximum correction by setting offset to center when airmode enabled
             throttle = 0.5
 
         else:
             # Only automatically adjust throttle when airmode enabled. Airmode logic is always active on high throttle
-            throttle_limit_offset = motor_mix_range / 2.0
-            throttle = self.constrainf(throttle, 0.0 + throttle_limit_offset, 1.0 - throttle_limit_offset)
+            throttleLimitOffset = motorMixRange / 2.0
+            throttle = self.constrainf(throttle, 0.0 + throttleLimitOffset, 1.0 - throttleLimitOffset)
 
         motor = []
         for i in range(motor_count):
-            motor_output = motor_output_min + (motor_output_range * (
-                    motor_output_mix_sign * motor_mix[i] + throttle * current_mixer[i][mixer_index_throttle]))
-            motor_output = self.constrainf(motor_output, motor_range_min, motor_range_max)
-            motor.append(motor_output)
+            motorOutput = motorOutputMin + (motorOutputRange * (
+                    motorOutputMixSign * motorMix[i] + throttle * currentMixer[i][mixer_index_throttle]))
+            motorOutput = self.constrainf(motorOutput, motorRangeMin, motorRangeMax);
+            motor.append(motorOutput)
 
         motor = list(map(int, np.round(motor)))
         return motor
@@ -170,7 +167,7 @@ class PID:
     """PID Controller
     """
 
-    def __init__(self, P=0.2, I=0.0, D=0.0):
+    def __init__(self, P=1.2, I=1, D=0.001):
 
         self.Kp = P
         self.Ki = I
@@ -211,8 +208,8 @@ class PID:
         """
         error = self.SetPoint - feedback_value
 
-        delta_time = current_time - self.last_time
-        delta_error = error - self.last_error
+        delta_time = (current_time - self.last_time) / current_time
+        delta_error = (error - self.last_error) / error
 
         if (delta_time >= self.sample_time):
             self.PTerm = self.Kp * error
@@ -283,7 +280,7 @@ class PIDEvaluator:
             desired = env.omega_target
             actual = env.omega_actual
             # PID only needs to calculate error between desired and actual y_e
-            ac = pi.action(ob, env.sim_time, desired, actual)
+            ac = pi.predict(ob, env.sim_time, desired, actual)
             ob, reward, done, info = env.step(ac)
             pbar.update(1)
 
@@ -315,7 +312,7 @@ class PIDEvaluator:
         rank = MPI.COMM_WORLD.Get_rank()
         workerseed = seed + 1000000 * rank
         env.seed(workerseed)
-        pi = PIDPolicy(r, p, y)
+        pi = Agent()
         desireds, actuals, rewards = self.run(env, pi)
         rewards = np.array(rewards)
         print('\nResults summary:\n\t--sum  {}\n\t--mean {}'.format(np.sum(rewards), np.mean(rewards)))
@@ -323,68 +320,6 @@ class PIDEvaluator:
         plot_title = 'Session seed {}'.format(seed)
         # self.plot_step_response(plot_title, np.array(desireds), np.array(actuals), title=title)
         return rewards
-
-    def plot_step_response(self, plot_title, desired, actual, title=None, step_size=0.001, threshold_percent=0.1):
-        # actual = actual[:,:end,:]
-        end_time = len(desired) * step_size
-        t = np.arange(0, end_time, step_size)
-
-        # desired = desired[:end]
-        threshold = threshold_percent * desired
-
-        plot_min = -math.radians(350)
-        plot_max = math.radians(350)
-
-        subplot_index = 3
-        num_subplots = 3
-
-        f, ax = plt.subplots(num_subplots, sharex=True, sharey=False)
-        f.set_size_inches(10, 5)
-        if title:
-            plt.suptitle(title)
-        ax[0].set_xlim([0, end_time])
-        res_linewidth = 2
-        linestyles = ["c", "m", "b", "g"]
-        reflinestyle = "k--"
-        error_linestyle = "r--"
-
-        # Always
-        ax[0].set_ylabel("Roll (rad/s)")
-        ax[1].set_ylabel("Pitch (rad/s)")
-        ax[2].set_ylabel("Yaw (rad/s)")
-
-        ax[-1].set_xlabel("Time (s)")
-
-        """ ROLL """
-        # Highlight the starting x axis
-        ax[0].axhline(0, color="#AAAAAA")
-        ax[0].plot(t, desired[:, 0], reflinestyle)
-        ax[0].plot(t, desired[:, 0] - threshold[:, 0], error_linestyle, alpha=0.5)
-        ax[0].plot(t, desired[:, 0] + threshold[:, 0], error_linestyle, alpha=0.5)
-
-        r = actual[:, 0]
-        ax[0].plot(t[:len(r)], r, linewidth=res_linewidth)
-        ax[0].grid(True)
-
-        """ PITCH """
-        ax[1].axhline(0, color="#AAAAAA")
-        ax[1].plot(t, desired[:, 1], reflinestyle)
-        ax[1].plot(t, desired[:, 1] - threshold[:, 1], error_linestyle, alpha=0.5)
-        ax[1].plot(t, desired[:, 1] + threshold[:, 1], error_linestyle, alpha=0.5)
-        p = actual[:, 1]
-        ax[1].plot(t[:len(p)], p, linewidth=res_linewidth)
-        ax[1].grid(True)
-
-        """ YAW """
-        ax[2].axhline(0, color="#AAAAAA")
-        ax[2].plot(t, desired[:, 2], reflinestyle)
-        ax[2].plot(t, desired[:, 2] - threshold[:, 2], error_linestyle, alpha=0.5)
-        ax[2].plot(t, desired[:, 2] + threshold[:, 2], error_linestyle, alpha=0.5)
-        y = actual[:, 2]
-        ax[2].plot(t[:len(y)], y, linewidth=res_linewidth)
-        ax[2].grid(True)
-
-        plt.savefig('{}.png'.format(plot_title))
 
 
 if __name__ == "__main__":

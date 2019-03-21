@@ -44,8 +44,9 @@ if __name__ == '__main__':
     PROCESSES = 3
     PRINT_ALL_STDOUT = False
 
-    seeds = [random.randint(1, 100000) for _ in range(PROCESSES)]
-    commands = ['python3 run_pid_optimized.py --seed {}'.format(seeds[i])
+    # seeds = [random.randint(1, 100000) for _ in range(PROCESSES)]
+    seeds = [15, 17, 72132]
+    commands = ['python3 pid_lenya.py --seed {}'.format(seeds[i])
                 for i in range(PROCESSES)]
 
     pool_args = []
