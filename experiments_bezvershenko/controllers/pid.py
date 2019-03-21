@@ -16,13 +16,22 @@ class Policy(object):
 
 
 class Agent(Policy):
-    def __init__(self):
-        self.r = [2, 10, 0.005]
-        self.p = [10, 10, 0.005]
-        self.y = [4, 50, 0.0]
+    def __init__(self, r=None, p=None, y=None):
+        if r is None:
+            self.r = [2, 10, 0.005]
+        if p is None:
+            self.p = [10, 10, 0.005]
+        if y is None:
+            self.y = [4, 50, 0.0]
+
+        # self.r = r
+        # self.p = p
+        # self.y = y
+
+        # print('!!!!!!!', self.r, self.p, self.y)
         self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
 
-    def predict(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
+    def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
         # Convert to degrees
         desired = list(map(math.degrees, desired))
         actual = list(map(math.degrees, actual))
@@ -32,7 +41,6 @@ class Agent(Policy):
 
     def reset(self):
         self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
-        
 
 
 class PIDController(object):
@@ -45,7 +53,7 @@ class PIDController(object):
     minthrottle = 1070
     maxthrottle = 2000
 
-    def __init__(self, pid_roll=[40, 40, 30], pid_pitch=[58, 50, 35], pid_yaw=[80, 45, 20], itermLimit=150):
+    def __init__(self, pid_roll=[40, 40, 30], pid_pitch=[58, 50, 35], pid_yaw=[80, 45, 20], iterm_limit=150):
 
         # init gains and scale
         self.Kp = [pid_roll[0], pid_pitch[0], pid_yaw[0]]
@@ -57,7 +65,7 @@ class PIDController(object):
         self.Kd = [pid_roll[2], pid_pitch[2], pid_yaw[2]]
         self.Kd = [self.DTERM_SCALE * d for d in self.Kd]
 
-        self.itermLimit = itermLimit
+        self.itermLimit = iterm_limit
 
         self.previousRateError = [0] * 3
         self.previousTime = 0
@@ -82,14 +90,14 @@ class PIDController(object):
             return amt
 
     def mix(self, r, p, y):
-        PID_MIXER_SCALING = 1000.0
-        pidSumLimit = 10000.  # 500
-        pidSumLimitYaw = 100000.  # 1000.0#400
-        motorOutputMixSign = 1
-        motorOutputRange = self.maxthrottle - self.minthrottle  # throttle max - throttle min
-        motorOutputMin = self.minthrottle
+        pid_mixer_scaling = 1000.0
+        pid_sum_limit = 10000.  # 500
+        pid_sum_limit_yaw = 100000.  # 1000.0#400
+        motor_output_mix_sign = 1
+        motor_output_range = self.maxthrottle - self.minthrottle  # throttle max - throttle min
+        motor_output_min = self.minthrottle
 
-        currentMixer = [
+        current_mixer = [
             [1.0, -1.0, 0.598, -1.0],  # REAR_R
             [1.0, -0.927, -0.598, 1.0],  # RONT_R
             [1.0, 1.0, 0.598, 1.0],  # REAR_L
@@ -100,52 +108,52 @@ class PIDController(object):
         mixer_index_pitch = 2
         mixer_index_yaw = 3
 
-        scaledAxisPidRoll = self.constrainf(r, -pidSumLimit, pidSumLimit) / PID_MIXER_SCALING
-        scaledAxisPidPitch = self.constrainf(p, -pidSumLimit, pidSumLimit) / PID_MIXER_SCALING
-        scaledAxisPidYaw = self.constrainf(y, -pidSumLimitYaw, pidSumLimitYaw) / PID_MIXER_SCALING
-        scaledAxisPidYaw = -scaledAxisPidYaw
+        scaled_axis_pid_roll = self.constrainf(r, -pid_sum_limit, pid_sum_limit) / pid_mixer_scaling
+        scaled_axis_pid_pitch = self.constrainf(p, -pid_sum_limit, pid_sum_limit) / pid_mixer_scaling
+        scaled_axis_pid_yaw = self.constrainf(y, -pid_sum_limit_yaw, pid_sum_limit_yaw) / pid_mixer_scaling
+        scaled_axis_pid_yaw = -scaled_axis_pid_yaw
 
         # Find roll/pitch/yaw desired output
         motor_count = 4
-        motorMix = [0] * motor_count
-        motorMixMax = 0
-        motorMixMin = 0
+        motor_mix = [0] * motor_count
+        motor_mix_max = 0
+        motor_mix_min = 0
         # No additional throttle, in air mode
         throttle = 0
-        motorRangeMin = 1000
-        motorRangeMax = 2000
+        motor_range_min = 1000
+        motor_range_max = 2000
 
         for i in range(motor_count):
-            mix = (scaledAxisPidRoll * currentMixer[i][1] +
-                   scaledAxisPidPitch * currentMixer[i][2] +
-                   scaledAxisPidYaw * currentMixer[i][3])
+            mix = (scaled_axis_pid_roll * current_mixer[i][1] +
+                   scaled_axis_pid_pitch * current_mixer[i][2] +
+                   scaled_axis_pid_yaw * current_mixer[i][3])
 
-            if mix > motorMixMax:
-                motorMixMax = mix
-            elif mix < motorMixMin:
-                motorMixMin = mix
-            motorMix[i] = mix
+            if mix > motor_mix_max:
+                motor_mix_max = mix
+            elif mix < motor_mix_min:
+                motor_mix_min = mix
+            motor_mix[i] = mix
 
-        motorMixRange = motorMixMax - motorMixMin
-        # print("range=", motorMixRange)
+        motor_mix_range = motor_mix_max - motor_mix_min
+        # print("range=", motor_mix_range)
 
-        if motorMixRange > 1.0:
+        if motor_mix_range > 1.0:
             for i in range(motor_count):
-                motorMix[i] /= motorMixRange
+                motor_mix[i] /= motor_mix_range
             # Get the maximum correction by setting offset to center when airmode enabled
             throttle = 0.5
 
         else:
             # Only automatically adjust throttle when airmode enabled. Airmode logic is always active on high throttle
-            throttleLimitOffset = motorMixRange / 2.0
-            throttle = self.constrainf(throttle, 0.0 + throttleLimitOffset, 1.0 - throttleLimitOffset)
+            throttle_limit_offset = motor_mix_range / 2.0
+            throttle = self.constrainf(throttle, 0.0 + throttle_limit_offset, 1.0 - throttle_limit_offset)
 
         motor = []
         for i in range(motor_count):
-            motorOutput = motorOutputMin + (motorOutputRange * (
-                    motorOutputMixSign * motorMix[i] + throttle * currentMixer[i][mixer_index_throttle]))
-            motorOutput = self.constrainf(motorOutput, motorRangeMin, motorRangeMax);
-            motor.append(motorOutput)
+            motor_output = motor_output_min + (motor_output_range * (
+                    motor_output_mix_sign * motor_mix[i] + throttle * current_mixer[i][mixer_index_throttle]))
+            motor_output = self.constrainf(motor_output, motor_range_min, motor_range_max)
+            motor.append(motor_output)
 
         motor = list(map(int, np.round(motor)))
         return motor
@@ -156,7 +164,8 @@ class PIDController(object):
     def reset(self):
         for pid in self.pid_rpy:
             pid.clear()
-    
+
+
 class PID:
     """PID Controller
     """
