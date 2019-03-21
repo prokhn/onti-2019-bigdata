@@ -266,7 +266,7 @@ class PIDEvaluator:
     def __init__(self):
         pass
 
-    def run(self, env, pi):
+    def run(self, env, pi, ticks_count: int):
         actuals = []
         desireds = []
         rewards = []
@@ -284,8 +284,9 @@ class PIDEvaluator:
             ob, reward, done, info = env.step(ac)
             pbar.update(1)
 
-            # if pbar.n >= 1000:
-            #     break
+            if ticks_count != -1:
+                if pbar.n >= ticks_count:
+                    break
 
             actuals.append(actual)
             desireds.append(desired)
@@ -298,7 +299,7 @@ class PIDEvaluator:
         env.close()
         return desireds, actuals, rewards
 
-    def main(self, env_id: str, seed: int, r=None, p=None, y=None):
+    def main(self, env_id: str, seed: int, r=None, p=None, y=None, ticks_count = -1):
         if y is None:
             y = [4, 50, 0.0]
         if p is None:
@@ -313,7 +314,7 @@ class PIDEvaluator:
         workerseed = seed + 1000000 * rank
         env.seed(workerseed)
         pi = Agent()
-        desireds, actuals, rewards = self.run(env, pi)
+        desireds, actuals, rewards = self.run(env, pi, ticks_count)
         rewards = np.array(rewards)
         print('\nResults summary:\n\t--sum  {}\n\t--mean {}'.format(np.sum(rewards), np.mean(rewards)))
         title = "PID Step Response in Environment {}".format(env_id)
@@ -327,6 +328,7 @@ if __name__ == "__main__":
     parser.add_argument('--env-id', help="The Gym environement ID", type=str,
                         default="AttFC_GyroErr-MotorVel_M4_Con-v0")
     parser.add_argument('--seed', help='RNG seed', type=int, default=9832)
+    parser.add_argument('--ticks', help='Ticks count', type=int, default=-1)
 
     args = parser.parse_args()
     current_dir = os.path.dirname(__file__)
@@ -336,4 +338,4 @@ if __name__ == "__main__":
     os.environ["GYMFC_CONFIG"] = config_path
 
     evaluator = PIDEvaluator()
-    evaluator.main(args.env_id, args.seed)
+    evaluator.main(args.env_id, args.seed, ticks_count=args.ticks)

@@ -46,7 +46,8 @@ if __name__ == '__main__':
 
     # seeds = [random.randint(1, 100000) for _ in range(PROCESSES)]
     seeds = [15, 17, 72132]
-    commands = ['python3 pid_lenya.py --seed {}'.format(seeds[i])
+    ticks = 10000
+    commands = ['python3 pid_lenya.py --ticks {} --seed {}'.format(ticks, seeds[i])
                 for i in range(PROCESSES)]
 
     pool_args = []
