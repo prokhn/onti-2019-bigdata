@@ -49,8 +49,8 @@ if __name__ == '__main__':
     comparator = GymFCComparator()
 
     PROCESSES = 3
-    seeds = [random.randint(1, 100000) for _ in range(PROCESSES)]
-    # seeds = [15, 17, 72132]
+    # seeds = [random.randint(1, 100000) for _ in range(PROCESSES)]
+    seeds = [8, 5, 239]
     ticks = -1
 
     py_group_1 = 'run_pid_optimized.py'

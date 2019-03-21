@@ -19,14 +19,17 @@ class Policy(object):
 
 
 class PIDPolicy(Policy):
-    def __init__(self, r, p, y):
-        # self.r = [2, 10, 0.005]
-        # self.p = [10, 10, 0.005]
-        # self.y = [4, 50, 0.0]
+    def __init__(self, r=None, p=None, y=None):
+        if r is None:
+            self.r = [2, 10, 0.005]
+        if p is None:
+            self.p = [10, 10, 0.005]
+        if y is None:
+            self.y = [4, 50, 0.0]
 
-        self.r = r
-        self.p = p
-        self.y = y
+        # self.r = r
+        # self.p = p
+        # self.y = y
 
         # print('!!!!!!!', self.r, self.p, self.y)
         self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)

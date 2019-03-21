@@ -28,7 +28,7 @@ class Agent(Policy):
         # self.y = [49, 50, 2]
         self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
 
-    def predict(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
+    def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
         # Convert to degrees
         desired = list(map(math.degrees, desired))
         actual = list(map(math.degrees, actual))
@@ -280,7 +280,7 @@ class PIDEvaluator:
             desired = env.omega_target
             actual = env.omega_actual
             # PID only needs to calculate error between desired and actual y_e
-            ac = pi.predict(ob, env.sim_time, desired, actual)
+            ac = pi.action(ob, env.sim_time, desired, actual)
             ob, reward, done, info = env.step(ac)
             pbar.update(1)
 
@@ -299,7 +299,7 @@ class PIDEvaluator:
         env.close()
         return desireds, actuals, rewards
 
-    def main(self, env_id: str, seed: int, r=None, p=None, y=None, ticks_count = -1):
+    def main(self, env_id: str, seed: int, r=None, p=None, y=None, ticks_count=-1):
         if y is None:
             y = [4, 50, 0.0]
         if p is None:

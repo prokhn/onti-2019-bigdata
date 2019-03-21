@@ -286,7 +286,7 @@ def evaluate(env, agent):
         desired = env.omega_target
         actual = env.omega_actual
 
-        ac = agent.predict(ob, env.sim_time, desired, actual)
+        ac = agent.action(ob, env.sim_time, desired, actual)
 
         # print('Deltas:', desired-actual)
         # print('Predicted velocity:', ac)
@@ -329,7 +329,7 @@ def main(env_id='AttFC_GyroErr-MotorVel_M4_Ep-v0', seed=17, w_file='data.csv'):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Evaluate a PID dataminer")
     parser.add_argument('--env-id', help="The Gym environement ID", type=str,
-                        default='AttFC_GyroErr-MotorVel_M4_Ep-v0')
+                        default='AttFC_GyroErr-MotorVel_M4_Con-v0')
     parser.add_argument('--seed-from', help='RNG seed', type=int)
     parser.add_argument('--seed-to', help='Mine iteration count', type=int)
     parser.add_argument('--w-file', help="File to write", type=str)
