@@ -188,7 +188,7 @@ class MAA2C(Agent):
                 nn.utils.clip_grad_norm(self.critics[agent_id].parameters(), self.max_grad_norm)
             self.critic_optimizers[agent_id].step()
 
-    # predict softmax action based on state
+    # action softmax action based on state
     def _softmax_action(self, state):
         state_var = to_tensor_var([state], self.use_cuda)
         softmax_action = np.zeros((self.n_agents, self.action_dim), dtype=np.float64)
@@ -200,7 +200,7 @@ class MAA2C(Agent):
                 softmax_action[agent_id] = softmax_action_var.data.numpy()[0]
         return softmax_action
 
-    # predict action based on state, added random noise for exploration in training
+    # action action based on state, added random noise for exploration in training
     def exploration_action(self, state):
         softmax_action = self._softmax_action(state)
         actions = [0]*self.n_agents
@@ -213,7 +213,7 @@ class MAA2C(Agent):
                 actions[agent_id] = np.argmax(softmax_action[agent_id])
         return actions
 
-    # predict action based on state for execution
+    # action action based on state for execution
     def action(self, state):
         softmax_actions = self._softmax_action(state)
         actions = np.argmax(softmax_actions, axis=1)
