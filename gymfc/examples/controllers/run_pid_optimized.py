@@ -19,10 +19,19 @@ class Policy(object):
 
 
 class PIDPolicy(Policy):
-    def __init__(self):
-        self.r = [2, 10, 0.005]
-        self.p = [10, 10, 0.005]
-        self.y = [4, 50, 0.0]
+    def __init__(self, r=None, p=None, y=None):
+        if r is None:
+            self.r = [2, 10, 0.005]
+        if p is None:
+            self.p = [10, 10, 0.005]
+        if y is None:
+            self.y = [4, 50, 0.0]
+
+        # self.r = r
+        # self.p = p
+        # self.y = y
+
+        # print('!!!!!!!', self.r, self.p, self.y)
         self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
 
     def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
@@ -263,7 +272,7 @@ class PIDEvaluator:
     def __init__(self):
         pass
 
-    def run(self, env, pi):
+    def run(self, env, pi, ticks_count: int):
         actuals = []
         desireds = []
         rewards = []
@@ -281,8 +290,9 @@ class PIDEvaluator:
             ob, reward, done, info = env.step(ac)
             pbar.update(1)
 
-            # if pbar.n >= 1500:
-            #     break
+            if ticks_count != -1:
+                if pbar.n >= ticks_count:
+                    break
 
             actuals.append(actual)
             desireds.append(desired)
@@ -295,7 +305,14 @@ class PIDEvaluator:
         env.close()
         return desireds, actuals, rewards
 
-    def main(self, env_id: str, seed: int):
+    def main(self, env_id: str, seed: int, r=None, p=None, y=None, ticks_count: int = -1):
+        if r is None:
+            r = [2, 10, 0.005]
+        if p is None:
+            p = [10, 10, 0.005]
+        if y is None:
+            y = [4, 50, 0.0]
+
         print('[Evaluator.main] Starting new session with seed {}'.format(seed))
         print('[Evaluator.main] Environment id is "{}"'.format(env_id))
 
@@ -303,13 +320,14 @@ class PIDEvaluator:
         rank = MPI.COMM_WORLD.Get_rank()
         workerseed = seed + 1000000 * rank
         env.seed(workerseed)
-        pi = PIDPolicy()
-        desireds, actuals, rewards = self.run(env, pi)
+        pi = PIDPolicy(r, p, y)
+        desireds, actuals, rewards = self.run(env, pi, ticks_count)
         rewards = np.array(rewards)
         print('\nResults summary:\n\t--sum  {}\n\t--mean {}'.format(np.sum(rewards), np.mean(rewards)))
         title = "PID Step Response in Environment {}".format(env_id)
         plot_title = 'Session seed {}'.format(seed)
         # self.plot_step_response(plot_title, np.array(desireds), np.array(actuals), title=title)
+        return rewards
 
     def plot_step_response(self, plot_title, desired, actual, title=None, step_size=0.001, threshold_percent=0.1):
         # actual = actual[:,:end,:]
@@ -379,6 +397,7 @@ if __name__ == "__main__":
     parser.add_argument('--env-id', help="The Gym environement ID", type=str,
                         default="AttFC_GyroErr-MotorVel_M4_Con-v0")
     parser.add_argument('--seed', help='RNG seed', type=int, default=9832)
+    parser.add_argument('--ticks', help='Ticks count', type=int, default=-1)
 
     args = parser.parse_args()
     current_dir = os.path.dirname(__file__)
@@ -388,4 +407,4 @@ if __name__ == "__main__":
     os.environ["GYMFC_CONFIG"] = config_path
 
     evaluator = PIDEvaluator()
-    evaluator.main(args.env_id, args.seed)
+    evaluator.main(args.env_id, args.seed, ticks_count=args.ticks)
