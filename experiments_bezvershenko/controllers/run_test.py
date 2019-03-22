@@ -47,7 +47,7 @@ def main():
     
     os.environ["GYMFC_CONFIG"] = config_path
     print(" Making env=", env)
-    
+
     sum_reward = 0
     env = gym.make(env)
     agent = Agent()
@@ -56,7 +56,7 @@ def main():
    
  
     for seed in seeds:
-        sum_reward += evaluate(agent, env, sum_reward, seed, verbose=True)
+        sum_reward = evaluate(agent, env, sum_reward, seed, verbose=True)
         
     print()
     print(sum_reward)
