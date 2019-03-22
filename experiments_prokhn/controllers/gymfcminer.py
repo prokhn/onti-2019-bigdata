@@ -42,8 +42,8 @@ if __name__ == '__main__':
 
     dataminer = GymFCMiner()
 
-    PROCESSES = 5
-    SEEDS_IN_PROCCESSES = 300
+    PROCESSES = 10
+    SEEDS_IN_PROCCESSES = 5
     w_filenames = ['mined/thread{}_{}.csv'.format(thind, time.strftime('%H_%M_%S')) for thind in range(PROCESSES)]
 
     seeds = []

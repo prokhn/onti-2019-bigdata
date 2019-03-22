@@ -34,6 +34,31 @@ class PIDPolicy(Policy):
         # print('!!!!!!!', self.r, self.p, self.y)
         self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
 
+    def fit(self, env, evaluate_process, train_seed=3972):
+        self.reset()
+        env.seed(train_seed)
+        ob = env.reset()
+
+        iter_reward = 0
+        tick_n = 0
+        rewards_mean = []
+        mean_now = 0.0
+
+        while True:
+            desired = env.omega_target
+            actual = env.omega_actual
+
+            ac = self.action(ob, env.sim_time, desired, actual)
+
+            ob, reward, done, info = env.step(ac)
+            iter_reward += reward  # Reward for one iteration
+
+            rewards_mean.append(abs(reward))
+            tick_n, mean_now = evaluate_process(tick_n, mean_now, rewards_mean, iter_reward, is_training=True)
+
+            if done:
+                break
+
     def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
         # Convert to degrees
         desired = list(map(math.degrees, desired))
