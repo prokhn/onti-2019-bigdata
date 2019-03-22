@@ -6,6 +6,8 @@ from mpi4py import MPI
 import math
 import os
 import time
+from keras.models import load_model as load
+import tqdm
 
 class Policy(object):
     def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
@@ -13,34 +15,6 @@ class Policy(object):
 
     def reset(self):
         pass
-
-
-class Agent(Policy):
-    def __init__(self, r=None, p=None, y=None):
-        if r is None:
-            self.r = [2, 10, 0.005]
-        if p is None:
-            self.p = [10, 10, 0.005]
-        if y is None:
-            self.y = [4, 50, 0.0]
-
-        # self.r = r
-        # self.p = p
-        # self.y = y
-
-        # print('!!!!!!!', self.r, self.p, self.y)
-        self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
-
-    def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
-        # Convert to degrees
-        desired = list(map(math.degrees, desired))
-        actual = list(map(math.degrees, actual))
-        motor_values = np.array(self.controller.calculate_motor_values(sim_time, desired, actual))
-        # Need to scale from 1000-2000 to -1:1
-        return np.array([(m - 1000) / 500 - 1 for m in motor_values])
-
-    def reset(self):
-        self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
 
 
 class PIDController(object):
@@ -53,7 +27,7 @@ class PIDController(object):
     minthrottle = 1070
     maxthrottle = 2000
 
-    def __init__(self, pid_roll=[40, 40, 30], pid_pitch=[58, 50, 35], pid_yaw=[80, 45, 20], iterm_limit=150):
+    def __init__(self, pid_roll=[40, 40, 30], pid_pitch=[58, 50, 35], pid_yaw=[80, 45, 20], iterm_limit=80):
 
         # init gains and scale
         self.Kp = [pid_roll[0], pid_pitch[0], pid_yaw[0]]
@@ -165,6 +139,66 @@ class PIDController(object):
         for pid in self.pid_rpy:
             pid.clear()
 
+class Agent(Policy):
+    def __init__(self, r=None, p=None, y=None):
+        if r is None:
+            self.r = [2, 10, 0.005]
+        if p is None:
+            self.p = [10, 10, 0.005]
+        if y is None:
+            self.y = [4, 50, 0.0]
+        
+            
+
+
+        # self.r = r
+        # self.p = p
+        # self.y = y
+
+        # print('!!!!!!!', self.r, self.p, self.y)
+        self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
+
+    def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3)):
+        # Convert to degrees
+        desired = list(map(math.degrees, desired))
+        actual = list(map(math.degrees, actual))
+        motor_values = np.array(self.controller.calculate_motor_values(sim_time, desired, actual))
+        # Need to scale from 1000-2000 to -1:1
+        return np.array([(m - 1000) / 500 - 1 for m in motor_values])
+
+    def reset(self):
+        self.controller = PIDController(pid_roll=self.r, pid_pitch=self.p, pid_yaw=self.y)
+        
+
+        
+    def fit(self, env, sum_reward=0, seed=17, verbose=False):
+        self.reset()
+        env.seed(seed)
+        ob = env.reset()
+        t = 0
+        # Saving actions and rewards
+        actions_for_learn = []
+        
+        pbar = tqdm.tqdm(total=60000)
+        while True:
+            desired = env.omega_target
+            actual = env.omega_actual
+            
+            
+            
+            action = self.action(ob, env.sim_time, desired, actual)
+            ob, reward, done, _ = env.step(action)
+            actions_for_learn.append((action, reward))
+            sum_reward += reward
+            t += 1
+            pbar.update(1)
+            pbar.set_description("Agent is training ...")
+            
+            if done:
+                pbar.close()
+                return
+            
+        
 
 class PID:
     """PID Controller
